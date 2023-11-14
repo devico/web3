@@ -13,6 +13,10 @@ import * as Contracts from ".";
 declare module "hardhat/types/runtime" {
   interface HardhatEthersHelpers extends HardhatEthersHelpersBase {
     getContractFactory(
+      name: "Ownable",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.Ownable__factory>;
+    getContractFactory(
       name: "Donation",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.Donation__factory>;
@@ -20,7 +24,20 @@ declare module "hardhat/types/runtime" {
       name: "FailingReceiver",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.FailingReceiver__factory>;
+    getContractFactory(
+      name: "FoundationContract",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.FoundationContract__factory>;
+    getContractFactory(
+      name: "Funds",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.Funds__factory>;
 
+    getContractAt(
+      name: "Ownable",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.Ownable>;
     getContractAt(
       name: "Donation",
       address: string,
@@ -31,6 +48,16 @@ declare module "hardhat/types/runtime" {
       address: string,
       signer?: ethers.Signer
     ): Promise<Contracts.FailingReceiver>;
+    getContractAt(
+      name: "FoundationContract",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.FoundationContract>;
+    getContractAt(
+      name: "Funds",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.Funds>;
 
     // default types
     getContractFactory(
