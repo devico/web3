@@ -1,1 +1,6 @@
 import "./setNumber"
+import "./getDonators"
+import "./getSumOfDonations"
+import "./sendHelp"
+import "./createFoundation"
+import "./transferFunds"
