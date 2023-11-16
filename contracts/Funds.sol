@@ -9,13 +9,14 @@ contract Funds is Ownable {
     mapping(address => address) public foundations;
 
     /// @dev Event of creation of a new charitable foundation.
-    event NewFoundationCreated(address indexed creator, address indexed receiver, string description);
+    event NewFoundationCreated(address indexed creator, address indexed foundationAddress, address donationReceiver, string description);
 
     error ZeroEther();
     error ZeroDonation();
     error OnlyOwner();
     error InsufficientFunds();
     error EtherSendError();
+    error NotFoundationOwner();
 
     constructor() Ownable()  {}
 
@@ -25,14 +26,17 @@ contract Funds is Ownable {
         }
     }
 
-    /// @dev The createFoundation function creates a new foundation.
+    /// @dev Creates a new FoundationContract and registers it in the 'foundations' mapping.
+    /// @param _donationReceiver The address of the donation receiver for the foundation.
+    /// @param _description A description of the foundation.
     function createFoundation(address _donationReceiver, string memory _description) external payable {
         FoundationContract newFoundation = new FoundationContract{value: msg.value}(_donationReceiver, _description);
 
         foundations[address(newFoundation)] = msg.sender;
 
-        emit NewFoundationCreated(msg.sender, _donationReceiver, _description);
+        emit NewFoundationCreated(msg.sender, address(newFoundation), _donationReceiver, _description);
     }
+    
 
     /// @dev Transfer funds to the recipient of the foundation.
     /// @param foundationAddress Address of the foundation to which funds should be transferred.
@@ -44,9 +48,11 @@ contract Funds is Ownable {
 
         FoundationContract foundation = FoundationContract(foundationAddress);
 
-        if (foundations[address(foundation)] == msg.sender) {
-            foundation.sendFundsToReceiver(amount);
+        if (foundations[foundationAddress] != msg.sender) {
+            revert NotFoundationOwner();
         }
+
+        foundation.sendFundsToReceiver(amount);
     }
 }
 

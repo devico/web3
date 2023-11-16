@@ -93,7 +93,7 @@ export interface FundsInterface extends utils.Interface {
   ): Result;
 
   events: {
-    "NewFoundationCreated(address,address,string)": EventFragment;
+    "NewFoundationCreated(address,address,address,string)": EventFragment;
     "OwnershipTransferred(address,address)": EventFragment;
   };
 
@@ -103,11 +103,12 @@ export interface FundsInterface extends utils.Interface {
 
 export interface NewFoundationCreatedEventObject {
   creator: string;
-  receiver: string;
+  foundationAddress: string;
+  donationReceiver: string;
   description: string;
 }
 export type NewFoundationCreatedEvent = TypedEvent<
-  [string, string, string],
+  [string, string, string, string],
   NewFoundationCreatedEventObject
 >;
 
@@ -239,14 +240,16 @@ export interface Funds extends BaseContract {
   };
 
   filters: {
-    "NewFoundationCreated(address,address,string)"(
+    "NewFoundationCreated(address,address,address,string)"(
       creator?: PromiseOrValue<string> | null,
-      receiver?: PromiseOrValue<string> | null,
+      foundationAddress?: PromiseOrValue<string> | null,
+      donationReceiver?: null,
       description?: null
     ): NewFoundationCreatedEventFilter;
     NewFoundationCreated(
       creator?: PromiseOrValue<string> | null,
-      receiver?: PromiseOrValue<string> | null,
+      foundationAddress?: PromiseOrValue<string> | null,
+      donationReceiver?: null,
       description?: null
     ): NewFoundationCreatedEventFilter;
 

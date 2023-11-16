@@ -36,13 +36,18 @@ describe('Funds Contract', () => {
       expect(await fundsContract.owner()).to.equal(await deployer.getAddress());
     });
 
-    it("Should create a new foundation", async function () {
-      const donationAmount = parseEther("1.0");
-      const tx = await fundsContract.connect(donor).createFoundation(user.address, "Charity", { value: donationAmount });
-
-      await expect(tx)
-          .to.emit(fundsContract, "NewFoundationCreated")
-          .withArgs(donor.address, user.address, "Charity");
+    it("should correctly create a foundation and register its address", async function () {
+      const receiverAddress = await user.getAddress();
+    
+      const foundationTx = await fundsContract.connect(donor).createFoundation(receiverAddress, "Test Description", { value: donationAmount });
+      const foundationReceipt = await foundationTx.wait();
+    
+      const foundationCreatedEvent = foundationReceipt.events?.find(e => e.event === "NewFoundationCreated");
+      const foundationAddress = foundationCreatedEvent?.args?.foundationAddress;
+      expect(foundationAddress).to.not.be.undefined;
+    
+      const registeredOwner = await fundsContract.foundations(foundationAddress);
+      expect(registeredOwner).to.equal(await donor.getAddress());
     });
   });
 
@@ -53,19 +58,43 @@ describe('Funds Contract', () => {
         .to.changeEtherBalance(fundsContract, donationAmount);
     });
 
-    it('Should transfer funds to recipient foundation', async () => {
-      const foundationFactory = await ethers.getContractFactory('FoundationContract', deployer);
-      const foundation = await foundationFactory.deploy(await user.getAddress(), 'Test Foundation');
-
-      const donationAmount = parseEther("1.0");
-      await user.sendTransaction({ to: foundation.address, value: donationAmount });
-
-      await fundsContract.transferFundsToReceiver(foundation.address, donationAmount);
-
-      const foundationBalance = await ethers.provider.getBalance(foundation.address);
-      expect(foundationBalance).to.equal(donationAmount);
+    it("should allow foundation owner to transfer funds", async function () {
+      const receiverAddress = await user.getAddress();
+    
+      const foundationTx = await fundsContract.connect(donor).createFoundation(receiverAddress, "Test Foundation", { value: donationAmount });
+      const foundationReceipt = await foundationTx.wait();
+      const foundationCreatedEvent = foundationReceipt.events?.find(e => e.event === "NewFoundationCreated");
+      const foundationAddress = foundationCreatedEvent?.args?.foundationAddress;
+      expect(foundationAddress).to.not.be.undefined;
+    
+      const registeredOwner = await fundsContract.foundations(foundationAddress);
+      expect(registeredOwner).to.equal(await donor.getAddress());
+    
+      const initialBalance = await ethers.provider.getBalance(foundationAddress);
+    
+      await fundsContract.connect(donor).transferFundsToReceiver(foundationAddress, donationAmount);
+    
+      const finalBalance = await ethers.provider.getBalance(foundationAddress);
+      expect(finalBalance).to.be.below(initialBalance);
     });
-
+  
+    it("should prevent non-owner from transferring funds", async function () {
+      await expect(fundsContract.connect(nonDonor).transferFundsToReceiver(foundation.address, donationAmount))
+        .to.be.revertedWithCustomError(fundsContract, "NotFoundationOwner");
+    });
+  
+    it("should revert transfer with zero ether", async function () {
+      const zeroAmount = ethers.utils.parseEther("0");
+      await expect(fundsContract.connect(donor).transferFundsToReceiver(foundation.address, zeroAmount))
+        .to.be.revertedWithCustomError(fundsContract, 'ZeroEther');
+    });
+  
+    it("should revert transfer to non-existing foundation", async function () {
+      const nonExistingFoundation = ethers.Wallet.createRandom().address;
+      await expect(fundsContract.connect(donor).transferFundsToReceiver(nonExistingFoundation, donationAmount))
+        .to.be.reverted;
+    });
+  
     it('Should revert if funds amount is zero', async () => {
       await expect(user.sendTransaction({ to: fundsContract.address, value: 0 }))
         .to.be.revertedWithCustomError(fundsContract, 'ZeroEther');
@@ -113,6 +142,19 @@ describe('FoundationContract', () => {
       const donationAmount = parseEther("1.0");
       await expect(() => receiver.sendTransaction({ to: foundationContract.address, value: donationAmount }))
         .to.changeEtherBalance(foundationContract, donationAmount);
+    });
+
+    it("should correctly handle subsequent donations from the same address", async function () {
+      const donationAmount = parseEther("1.0");
+      await foundationContract.connect(nonOwner).donate({ value: donationAmount });
+  
+      let totalDonated = await foundationContract.donations(nonOwner.getAddress());
+      expect(totalDonated).to.equal(donationAmount);
+  
+      await foundationContract.connect(nonOwner).donate({ value: donationAmount });
+  
+      totalDonated = await foundationContract.donations(nonOwner.getAddress());
+      expect(totalDonated).to.equal(donationAmount.mul(2));
     });
   });
 
