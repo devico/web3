@@ -14,6 +14,13 @@ task("createFoundation", "Creates a new foundation")
     )
 
     const tx = await fundsContract.createFoundation(receiver, description, { value: hre.ethers.utils.parseEther(value) });
-    await tx.wait();
-    console.log("Foundation created");
+    const receipt = await tx.wait();
+    
+    const newFoundationEvent = receipt.events?.find(event => event.event === "NewFoundationCreated");
+    if (!newFoundationEvent) {
+      throw new Error("New foundation event not found");
+    }
+
+    const newFoundationAddress = newFoundationEvent.args?.receiver;
+    console.log("New foundation created at address:", newFoundationAddress);
   });
