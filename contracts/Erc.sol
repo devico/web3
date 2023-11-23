@@ -1,0 +1,147 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.18;
+
+interface IERC20 {
+    /// @notice Returns the name of the token
+    function name() external view returns (string memory);
+
+    /// @notice Returns the symbol of the token
+    function symbol() external view returns (string memory);
+
+    /// @notice Returns the number of decimals the token uses
+    function decimals() external pure returns(uint8);
+
+    /// @notice Returns the total token supply
+    function totalSupply() external view returns(uint);
+
+    /// @notice Returns the account balance of another account with address _owner
+    function balanceOf(address account) external view returns(uint);
+
+    /// @notice Transfers _value amount of tokens to address _to
+    function transfer(address to, uint amount) external;
+
+    /// @notice Returns the amount which _spender is still allowed to withdraw from _owner
+    function allowance(address owner, address spender) external view returns(uint);
+
+    /// @notice Allows _spender to withdraw from your account multiple times, up to the _value amount
+    function approve(address spender, uint amount) external;
+
+    /// @notice Transfers _value amount of tokens from address _from to address _to
+    function transferFrom(address sender, address recipient, uint amount) external;
+
+    /// @notice Triggered when tokens are transferred, including zero value transfers
+    event Transfer(address indexed from, address indexed to, uint amount);
+
+    /// @notice Triggered whenever approve(address _spender, uint256 _value) is called
+    event Approval(address indexed owner, address indexed to, uint amount);
+}
+
+contract ERC20 is IERC20 {
+    uint totalTokens;
+    mapping(address => uint) balances;
+    mapping(address => mapping(address => uint)) allowances;
+    
+    /// @dev Initializes the contract with an initial supply of tokens
+    /// @param initialSupply The initial amount of tokens to mint
+    constructor(uint initialSupply) {
+        mint(initialSupply);
+    }
+
+    /// @notice Modifier that checks if the sender has enough tokens
+    modifier enoughTokens(address _from, uint _amount) {
+        require(balanceOf(_from) >= _amount, "Not enough tokens.");
+        _;
+    }
+
+    /// @notice Returns the name of the token
+    function name() public pure returns (string memory) {
+        return "DsnToken";
+    }
+
+    /// @notice Returns the symbol of the token
+    function symbol() public pure returns (string memory) {
+        return "DSN";
+    }    
+
+    /// @notice Returns the number of decimals the token uses
+    function decimals() public pure returns(uint8) {
+        return 18;
+    }
+
+    /// @notice Returns the total token supply
+    function totalSupply() public view returns(uint) {
+        return totalTokens;
+    }
+
+    /// @notice Returns the account balance of a given account
+    /// @param account The address of the account to query
+    function balanceOf(address account) public view returns(uint) {
+        return balances[account];
+    }
+
+    /// @notice Transfers tokens to a specified address
+    /// @param to The address to transfer tokens to
+    /// @param amount The amount of tokens to be transferred
+    function transfer(address to, uint amount) external {
+        balances[msg.sender] -= amount;
+        balances[to] += amount;
+        emit Transfer(msg.sender, to, amount);
+    }
+
+    /// @notice Returns the remaining number of tokens that spender is allowed to spend
+    /// @param owner The address of the token owner
+    /// @param spender The address of the spender
+    function allowance(address owner, address spender) external view returns(uint) {
+        return allowances[owner][spender];
+    }
+
+    /// @notice Sets the amount of tokens that a spender is allowed to transfer on behalf of the token owner
+    /// @param spender The address which will spend the funds
+    /// @param amount The amount of tokens to be spent
+    function approve(address spender, uint amount) external {
+        allowances[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+    }
+
+    /// @notice Transfers tokens from one address to another, using the allowance mechanism
+    /// @param sender The address which you want to send tokens from
+    /// @param recipient The address which you want to transfer to
+    /// @param amount The amount of tokens to be transferred
+    function transferFrom(address sender, address recipient, uint amount) external enoughTokens(sender, amount) {
+        allowances[sender][recipient] -= amount;
+        balances[sender] -= amount;
+        balances[recipient] += amount;
+        emit Transfer(sender, recipient, amount);
+    }
+
+    /// @notice Increases the amount of tokens that an owner allowed to a spender
+    /// @param spender The address which will spend the funds
+    /// @param addedValue The additional amount of tokens to be allowed for spending
+    function increaseAllowance(address spender, uint addedValue) public {
+        allowances[msg.sender][spender] += addedValue;
+    }
+
+    /// @notice Decreases the amount of tokens that an owner allowed to a spender
+    /// @param spender The address which will spend the funds
+    /// @param subtractedValue The reduced amount of tokens to be allowed for spending
+    function decreaseAllowance(address spender, uint subtractedValue) public {
+        allowances[msg.sender][spender] -= subtractedValue;
+    }
+
+    /// @notice Mints a specified amount of tokens and assigns them to the sender
+    /// @param amount The amount of tokens to be minted
+    function mint(uint amount) public {
+        balances[msg.sender] += amount;
+        totalTokens += amount;
+        emit Transfer(address((0)), msg.sender, amount);
+    }
+
+    /// @notice Burns a specified amount of tokens from the sender
+    /// @param amount The amount of tokens to be burned
+    function burn(uint amount) public {
+        balances[msg.sender] -= amount;
+        totalTokens -= amount;
+        emit Transfer(msg.sender, address((0)), amount);
+    }
+}
