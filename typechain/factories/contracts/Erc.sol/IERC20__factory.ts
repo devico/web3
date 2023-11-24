@@ -98,7 +98,13 @@ const _abi = [
       },
     ],
     name: "approve",
-    outputs: [],
+    outputs: [
+      {
+        internalType: "bool",
+        name: "success",
+        type: "bool",
+      },
+    ],
     stateMutability: "nonpayable",
     type: "function",
   },
@@ -187,7 +193,13 @@ const _abi = [
       },
     ],
     name: "transfer",
-    outputs: [],
+    outputs: [
+      {
+        internalType: "bool",
+        name: "success",
+        type: "bool",
+      },
+    ],
     stateMutability: "nonpayable",
     type: "function",
   },
@@ -210,7 +222,13 @@ const _abi = [
       },
     ],
     name: "transferFrom",
-    outputs: [],
+    outputs: [
+      {
+        internalType: "bool",
+        name: "success",
+        type: "bool",
+      },
+    ],
     stateMutability: "nonpayable",
     type: "function",
   },

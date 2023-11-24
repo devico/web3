@@ -249,7 +249,7 @@ export interface IERC20 extends BaseContract {
       spender: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
-    ): Promise<void>;
+    ): Promise<boolean>;
 
     balanceOf(
       account: PromiseOrValue<string>,
@@ -268,14 +268,14 @@ export interface IERC20 extends BaseContract {
       to: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
-    ): Promise<void>;
+    ): Promise<boolean>;
 
     transferFrom(
       sender: PromiseOrValue<string>,
       recipient: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
-    ): Promise<void>;
+    ): Promise<boolean>;
   };
 
   filters: {
