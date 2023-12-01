@@ -224,6 +224,13 @@ describe("ERC20 Token Contract", function () {
     });
 
     describe("Minting Tokens", function () {
+        const mintAmount = BigNumber.from(1000);
+
+        it("Should only allow owner to mint tokens", async function () {
+            await expect(token.connect(addr1).mint(addr1.address, mintAmount))
+                .to.be.revertedWith("Ownable: caller is not the owner");
+        });
+
         it("Should revert when trying to mint to the zero address", async function () {
             const mintAmount = BigNumber.from(1000);
             await expect(token.connect(owner).mint(ethers.constants.AddressZero, mintAmount))
@@ -246,6 +253,11 @@ describe("ERC20 Token Contract", function () {
         beforeEach(async function () {
             burnAmount = ethers.utils.parseEther("500");
             initialOwnerBalance = await token.balanceOf(owner.address);
+        });
+
+        it("Should only allow owner to burn tokens", async function () {
+            await expect(token.connect(addr1).burn(addr1.address, burnAmount))
+                .to.be.revertedWith("Ownable: caller is not the owner");
         });
     
         it("Should burn tokens correctly", async function () {
