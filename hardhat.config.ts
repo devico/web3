@@ -13,7 +13,7 @@ dotenv.config()
 const MAINNET_RPC_URL =
     process.env.MAINNET_RPC_URL ||
     process.env.ALCHEMY_MAINNET_RPC_URL ||
-    "https://eth-mainnet.alchemyapi.io/v2/your-api-key"
+    "https://eth-mainnet.alchemyapi.io/v2/JfmlOxtsHizE-68uveIrxL-uXrnxWG-y"
 const POLYGON_MAINNET_RPC_URL =
     process.env.POLYGON_MAINNET_RPC_URL || "https://polygon-mainnet.alchemyapi.io/v2/your-api-key"
 const POLYGON_MUMBAI_RPC_URL =
@@ -34,11 +34,11 @@ const config: HardhatUserConfig = {
         hardhat: {
             // hardfork: "merge",
             // // If you want to do some forking set `enabled` to true
-            // forking: {
-            //     url: MAINNET_RPC_URL,
-            //     blockNumber: Number(FORKING_BLOCK_NUMBER),
-            //     enabled: false,
-            // },
+            forking: {
+                url: MAINNET_RPC_URL,
+                // blockNumber: Number(FORKING_BLOCK_NUMBER),
+                enabled: true,
+            },
             chainId: 31337,
         },
         localhost: {

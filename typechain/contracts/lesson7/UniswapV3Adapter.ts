@@ -13,7 +13,11 @@ import type {
   Signer,
   utils,
 } from "ethers";
-import type { FunctionFragment, Result } from "@ethersproject/abi";
+import type {
+  FunctionFragment,
+  Result,
+  EventFragment,
+} from "@ethersproject/abi";
 import type { Listener, Provider } from "@ethersproject/providers";
 import type {
   TypedEventFilter,
@@ -33,10 +37,11 @@ export interface UniswapV3AdapterInterface extends utils.Interface {
     "mintNewPosition(address,address,uint24,uint256,uint256,int24,int24)": FunctionFragment;
     "nonfungiblePositionManager()": FunctionFragment;
     "positions(uint256)": FunctionFragment;
+    "sortTokens(address,address)": FunctionFragment;
     "swapExactInput(address,uint256,uint256,bytes)": FunctionFragment;
     "swapExactOutput(address,uint256,uint256,bytes)": FunctionFragment;
     "swapRouter()": FunctionFragment;
-    "uniSwapV3Factory()": FunctionFragment;
+    "testSqrt(uint256)": FunctionFragment;
   };
 
   getFunction(
@@ -49,10 +54,11 @@ export interface UniswapV3AdapterInterface extends utils.Interface {
       | "mintNewPosition"
       | "nonfungiblePositionManager"
       | "positions"
+      | "sortTokens"
       | "swapExactInput"
       | "swapExactOutput"
       | "swapRouter"
-      | "uniSwapV3Factory"
+      | "testSqrt"
   ): FunctionFragment;
 
   encodeFunctionData(
@@ -105,6 +111,10 @@ export interface UniswapV3AdapterInterface extends utils.Interface {
     values: [PromiseOrValue<BigNumberish>]
   ): string;
   encodeFunctionData(
+    functionFragment: "sortTokens",
+    values: [PromiseOrValue<string>, PromiseOrValue<string>]
+  ): string;
+  encodeFunctionData(
     functionFragment: "swapExactInput",
     values: [
       PromiseOrValue<string>,
@@ -127,8 +137,8 @@ export interface UniswapV3AdapterInterface extends utils.Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "uniSwapV3Factory",
-    values?: undefined
+    functionFragment: "testSqrt",
+    values: [PromiseOrValue<BigNumberish>]
   ): string;
 
   decodeFunctionResult(
@@ -157,6 +167,7 @@ export interface UniswapV3AdapterInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "positions", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "sortTokens", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "swapExactInput",
     data: BytesLike
@@ -166,13 +177,127 @@ export interface UniswapV3AdapterInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "swapRouter", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "uniSwapV3Factory",
-    data: BytesLike
-  ): Result;
+  decodeFunctionResult(functionFragment: "testSqrt", data: BytesLike): Result;
 
-  events: {};
+  events: {
+    "FeesCollected(uint256,address,uint256,uint256)": EventFragment;
+    "LiquidityDecreased(uint256,address,uint256,uint256,uint128)": EventFragment;
+    "LiquidityIncreased(uint256,address,uint128,uint256,uint256)": EventFragment;
+    "NewPositionMinted(uint256,address,address,address,uint128,uint256,uint256)": EventFragment;
+    "PoolCreated(address,address,address,uint24,uint160)": EventFragment;
+    "SwapExactOutputExecuted(address,uint256,uint256,bytes)": EventFragment;
+    "SwapExecuted(address,uint256,uint256,bytes)": EventFragment;
+  };
+
+  getEvent(nameOrSignatureOrTopic: "FeesCollected"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "LiquidityDecreased"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "LiquidityIncreased"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "NewPositionMinted"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "PoolCreated"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "SwapExactOutputExecuted"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "SwapExecuted"): EventFragment;
 }
+
+export interface FeesCollectedEventObject {
+  tokenId: BigNumber;
+  owner: string;
+  amount0: BigNumber;
+  amount1: BigNumber;
+}
+export type FeesCollectedEvent = TypedEvent<
+  [BigNumber, string, BigNumber, BigNumber],
+  FeesCollectedEventObject
+>;
+
+export type FeesCollectedEventFilter = TypedEventFilter<FeesCollectedEvent>;
+
+export interface LiquidityDecreasedEventObject {
+  tokenId: BigNumber;
+  owner: string;
+  amount0: BigNumber;
+  amount1: BigNumber;
+  liquidity: BigNumber;
+}
+export type LiquidityDecreasedEvent = TypedEvent<
+  [BigNumber, string, BigNumber, BigNumber, BigNumber],
+  LiquidityDecreasedEventObject
+>;
+
+export type LiquidityDecreasedEventFilter =
+  TypedEventFilter<LiquidityDecreasedEvent>;
+
+export interface LiquidityIncreasedEventObject {
+  tokenId: BigNumber;
+  owner: string;
+  liquidity: BigNumber;
+  amount0: BigNumber;
+  amount1: BigNumber;
+}
+export type LiquidityIncreasedEvent = TypedEvent<
+  [BigNumber, string, BigNumber, BigNumber, BigNumber],
+  LiquidityIncreasedEventObject
+>;
+
+export type LiquidityIncreasedEventFilter =
+  TypedEventFilter<LiquidityIncreasedEvent>;
+
+export interface NewPositionMintedEventObject {
+  tokenId: BigNumber;
+  owner: string;
+  token0: string;
+  token1: string;
+  liquidity: BigNumber;
+  amount0: BigNumber;
+  amount1: BigNumber;
+}
+export type NewPositionMintedEvent = TypedEvent<
+  [BigNumber, string, string, string, BigNumber, BigNumber, BigNumber],
+  NewPositionMintedEventObject
+>;
+
+export type NewPositionMintedEventFilter =
+  TypedEventFilter<NewPositionMintedEvent>;
+
+export interface PoolCreatedEventObject {
+  pair: string;
+  token0: string;
+  token1: string;
+  fee: number;
+  sqrtPriceX96: BigNumber;
+}
+export type PoolCreatedEvent = TypedEvent<
+  [string, string, string, number, BigNumber],
+  PoolCreatedEventObject
+>;
+
+export type PoolCreatedEventFilter = TypedEventFilter<PoolCreatedEvent>;
+
+export interface SwapExactOutputExecutedEventObject {
+  tokenIn: string;
+  amountOut: BigNumber;
+  amountIn: BigNumber;
+  path: string;
+}
+export type SwapExactOutputExecutedEvent = TypedEvent<
+  [string, BigNumber, BigNumber, string],
+  SwapExactOutputExecutedEventObject
+>;
+
+export type SwapExactOutputExecutedEventFilter =
+  TypedEventFilter<SwapExactOutputExecutedEvent>;
+
+export interface SwapExecutedEventObject {
+  tokenIn: string;
+  amountIn: BigNumber;
+  amountOut: BigNumber;
+  path: string;
+}
+export type SwapExecutedEvent = TypedEvent<
+  [string, BigNumber, BigNumber, string],
+  SwapExecutedEventObject
+>;
+
+export type SwapExecutedEventFilter = TypedEventFilter<SwapExecutedEvent>;
 
 export interface UniswapV3Adapter extends BaseContract {
   connect(signerOrProvider: Signer | Provider | string): this;
@@ -258,6 +383,12 @@ export interface UniswapV3Adapter extends BaseContract {
       }
     >;
 
+    sortTokens(
+      tokenA: PromiseOrValue<string>,
+      tokenB: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<[string, string] & { token0: string; token1: string }>;
+
     swapExactInput(
       tokenIn: PromiseOrValue<string>,
       amountIn: PromiseOrValue<BigNumberish>,
@@ -276,7 +407,10 @@ export interface UniswapV3Adapter extends BaseContract {
 
     swapRouter(overrides?: CallOverrides): Promise<[string]>;
 
-    uniSwapV3Factory(overrides?: CallOverrides): Promise<[string]>;
+    testSqrt(
+      y: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber]>;
   };
 
   collectAllFees(
@@ -336,6 +470,12 @@ export interface UniswapV3Adapter extends BaseContract {
     }
   >;
 
+  sortTokens(
+    tokenA: PromiseOrValue<string>,
+    tokenB: PromiseOrValue<string>,
+    overrides?: CallOverrides
+  ): Promise<[string, string] & { token0: string; token1: string }>;
+
   swapExactInput(
     tokenIn: PromiseOrValue<string>,
     amountIn: PromiseOrValue<BigNumberish>,
@@ -354,7 +494,10 @@ export interface UniswapV3Adapter extends BaseContract {
 
   swapRouter(overrides?: CallOverrides): Promise<string>;
 
-  uniSwapV3Factory(overrides?: CallOverrides): Promise<string>;
+  testSqrt(
+    y: PromiseOrValue<BigNumberish>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
 
   callStatic: {
     collectAllFees(
@@ -431,6 +574,12 @@ export interface UniswapV3Adapter extends BaseContract {
       }
     >;
 
+    sortTokens(
+      tokenA: PromiseOrValue<string>,
+      tokenB: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<[string, string] & { token0: string; token1: string }>;
+
     swapExactInput(
       tokenIn: PromiseOrValue<string>,
       amountIn: PromiseOrValue<BigNumberish>,
@@ -449,10 +598,116 @@ export interface UniswapV3Adapter extends BaseContract {
 
     swapRouter(overrides?: CallOverrides): Promise<string>;
 
-    uniSwapV3Factory(overrides?: CallOverrides): Promise<string>;
+    testSqrt(
+      y: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
   };
 
-  filters: {};
+  filters: {
+    "FeesCollected(uint256,address,uint256,uint256)"(
+      tokenId?: PromiseOrValue<BigNumberish> | null,
+      owner?: PromiseOrValue<string> | null,
+      amount0?: null,
+      amount1?: null
+    ): FeesCollectedEventFilter;
+    FeesCollected(
+      tokenId?: PromiseOrValue<BigNumberish> | null,
+      owner?: PromiseOrValue<string> | null,
+      amount0?: null,
+      amount1?: null
+    ): FeesCollectedEventFilter;
+
+    "LiquidityDecreased(uint256,address,uint256,uint256,uint128)"(
+      tokenId?: PromiseOrValue<BigNumberish> | null,
+      owner?: PromiseOrValue<string> | null,
+      amount0?: null,
+      amount1?: null,
+      liquidity?: null
+    ): LiquidityDecreasedEventFilter;
+    LiquidityDecreased(
+      tokenId?: PromiseOrValue<BigNumberish> | null,
+      owner?: PromiseOrValue<string> | null,
+      amount0?: null,
+      amount1?: null,
+      liquidity?: null
+    ): LiquidityDecreasedEventFilter;
+
+    "LiquidityIncreased(uint256,address,uint128,uint256,uint256)"(
+      tokenId?: PromiseOrValue<BigNumberish> | null,
+      owner?: PromiseOrValue<string> | null,
+      liquidity?: null,
+      amount0?: null,
+      amount1?: null
+    ): LiquidityIncreasedEventFilter;
+    LiquidityIncreased(
+      tokenId?: PromiseOrValue<BigNumberish> | null,
+      owner?: PromiseOrValue<string> | null,
+      liquidity?: null,
+      amount0?: null,
+      amount1?: null
+    ): LiquidityIncreasedEventFilter;
+
+    "NewPositionMinted(uint256,address,address,address,uint128,uint256,uint256)"(
+      tokenId?: PromiseOrValue<BigNumberish> | null,
+      owner?: PromiseOrValue<string> | null,
+      token0?: null,
+      token1?: null,
+      liquidity?: null,
+      amount0?: null,
+      amount1?: null
+    ): NewPositionMintedEventFilter;
+    NewPositionMinted(
+      tokenId?: PromiseOrValue<BigNumberish> | null,
+      owner?: PromiseOrValue<string> | null,
+      token0?: null,
+      token1?: null,
+      liquidity?: null,
+      amount0?: null,
+      amount1?: null
+    ): NewPositionMintedEventFilter;
+
+    "PoolCreated(address,address,address,uint24,uint160)"(
+      pair?: PromiseOrValue<string> | null,
+      token0?: PromiseOrValue<string> | null,
+      token1?: PromiseOrValue<string> | null,
+      fee?: null,
+      sqrtPriceX96?: null
+    ): PoolCreatedEventFilter;
+    PoolCreated(
+      pair?: PromiseOrValue<string> | null,
+      token0?: PromiseOrValue<string> | null,
+      token1?: PromiseOrValue<string> | null,
+      fee?: null,
+      sqrtPriceX96?: null
+    ): PoolCreatedEventFilter;
+
+    "SwapExactOutputExecuted(address,uint256,uint256,bytes)"(
+      tokenIn?: PromiseOrValue<string> | null,
+      amountOut?: null,
+      amountIn?: null,
+      path?: null
+    ): SwapExactOutputExecutedEventFilter;
+    SwapExactOutputExecuted(
+      tokenIn?: PromiseOrValue<string> | null,
+      amountOut?: null,
+      amountIn?: null,
+      path?: null
+    ): SwapExactOutputExecutedEventFilter;
+
+    "SwapExecuted(address,uint256,uint256,bytes)"(
+      tokenIn?: PromiseOrValue<string> | null,
+      amountIn?: null,
+      amountOut?: null,
+      path?: null
+    ): SwapExecutedEventFilter;
+    SwapExecuted(
+      tokenIn?: PromiseOrValue<string> | null,
+      amountIn?: null,
+      amountOut?: null,
+      path?: null
+    ): SwapExecutedEventFilter;
+  };
 
   estimateGas: {
     collectAllFees(
@@ -505,6 +760,12 @@ export interface UniswapV3Adapter extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
+    sortTokens(
+      tokenA: PromiseOrValue<string>,
+      tokenB: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
     swapExactInput(
       tokenIn: PromiseOrValue<string>,
       amountIn: PromiseOrValue<BigNumberish>,
@@ -523,7 +784,10 @@ export interface UniswapV3Adapter extends BaseContract {
 
     swapRouter(overrides?: CallOverrides): Promise<BigNumber>;
 
-    uniSwapV3Factory(overrides?: CallOverrides): Promise<BigNumber>;
+    testSqrt(
+      y: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
   };
 
   populateTransaction: {
@@ -579,6 +843,12 @@ export interface UniswapV3Adapter extends BaseContract {
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
+    sortTokens(
+      tokenA: PromiseOrValue<string>,
+      tokenB: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
     swapExactInput(
       tokenIn: PromiseOrValue<string>,
       amountIn: PromiseOrValue<BigNumberish>,
@@ -597,6 +867,9 @@ export interface UniswapV3Adapter extends BaseContract {
 
     swapRouter(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
-    uniSwapV3Factory(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+    testSqrt(
+      y: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
   };
 }

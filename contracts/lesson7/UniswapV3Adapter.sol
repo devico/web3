@@ -10,7 +10,6 @@ import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 
 contract UniswapV3Adapter {
     INonfungiblePositionManager public nonfungiblePositionManager;
-    IUniswapV3Factory public uniSwapV3Factory;
     ISwapRouter public swapRouter;
 
     struct PositionInfo {
@@ -22,6 +21,58 @@ contract UniswapV3Adapter {
 
     mapping(uint256 => PositionInfo) public positions;
 
+    event PoolCreated(
+        address indexed pair,
+        address indexed token0,
+        address indexed token1,
+        uint24 fee,
+        uint160 sqrtPriceX96
+    );
+
+    event NewPositionMinted(
+        uint256 indexed tokenId,
+        address indexed owner,
+        address token0,
+        address token1,
+        uint128 liquidity,
+        uint256 amount0,
+        uint256 amount1
+    );
+
+    event FeesCollected(
+        uint256 indexed tokenId,
+        address indexed owner,
+        uint256 amount0,
+        uint256 amount1
+    );
+
+    event LiquidityDecreased(
+        uint256 indexed tokenId,
+        address indexed owner,
+        uint256 amount0,
+        uint256 amount1,
+        uint128 liquidity
+    );
+
+    event LiquidityIncreased(
+        uint256 indexed tokenId,
+        address indexed owner,
+        uint128 liquidity,
+        uint256 amount0,
+        uint256 amount1
+    );
+
+    event SwapExecuted(address indexed tokenIn, uint256 amountIn, uint256 amountOut, bytes path);
+
+    event SwapExactOutputExecuted(
+        address indexed tokenIn,
+        uint256 amountOut,
+        uint256 amountIn,
+        bytes path
+    );
+
+    error IdenticalAddresses();
+    error ZeroAddress();
     error InvalidTokenOrder(address token0, address token1);
     error InvalidFee(uint24 fee);
     error InvalidSqrtPriceX96(uint160 sqrtPriceX96);
@@ -42,16 +93,10 @@ contract UniswapV3Adapter {
     /**
      * @dev Constructor for creating Uniswap V3 Adapter.
      * @param _nonfungiblePositionManager Address of the NonfungiblePositionManager contract.
-     * @param _uniswapV3Factory Address of the Uniswap V3 Factory.
      * @param _swapRouter Address of the Uniswap V3 Swap Router.
      */
-    constructor(
-        address _nonfungiblePositionManager,
-        address _uniswapV3Factory,
-        address _swapRouter
-    ) {
+    constructor(address _nonfungiblePositionManager, address _swapRouter) {
         nonfungiblePositionManager = INonfungiblePositionManager(_nonfungiblePositionManager);
-        uniSwapV3Factory = IUniswapV3Factory(_uniswapV3Factory);
         swapRouter = ISwapRouter(_swapRouter);
     }
 
@@ -69,15 +114,21 @@ contract UniswapV3Adapter {
         uint24 fee,
         uint160 sqrtPriceX96
     ) external returns (address pair) {
-        if (token0 >= token1) {
-            revert InvalidTokenOrder(token0, token1);
+        if (token0 == token1) {
+            revert IdenticalAddresses();
+        }
+
+        (token0, token1) = sortTokens(token0, token1);
+
+        if (token0 == address(0)) {
+            revert ZeroAddress();
         }
 
         if (fee != 500 && fee != 3000 && fee != 10000) {
             revert InvalidFee(fee);
         }
 
-        if (sqrtPriceX96 <= 0 || sqrtPriceX96 > type(uint160).max) {
+        if (sqrtPriceX96 <= 0) {
             revert InvalidSqrtPriceX96(sqrtPriceX96);
         }
 
@@ -88,7 +139,23 @@ contract UniswapV3Adapter {
             sqrtPriceX96
         );
 
+        emit PoolCreated(pair, token0, token1, fee, sqrtPriceX96);
+
         return pair;
+    }
+
+    /**
+     * @dev Sorts two token addresses to maintain a consistent order.
+     * @param tokenA The address of the first token.
+     * @param tokenB The address of the second token.
+     * @return token0 The address of the token with the lower address.
+     * @return token1 The address of the token with the higher address.
+     */
+    function sortTokens(
+        address tokenA,
+        address tokenB
+    ) public pure returns (address token0, address token1) {
+        return tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
     }
 
     /**
@@ -133,6 +200,10 @@ contract UniswapV3Adapter {
         }
     }
 
+    function testSqrt(uint256 y) external pure returns (uint256) {
+        return sqrt(y);
+    }
+
     /**
      * @dev Mints a new position in Uniswap V3 and adds liquidity to the pool.
      * @param token0 Address of the first token in the pair.
@@ -156,8 +227,14 @@ contract UniswapV3Adapter {
         int24 minTick,
         int24 maxTick
     ) external returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) {
-        if (token0 >= token1) {
-            revert InvalidTokenOrder(token0, token1);
+        if (token0 == token1) {
+            revert IdenticalAddresses();
+        }
+
+        (token0, token1) = sortTokens(token0, token1);
+
+        if (token0 == address(0)) {
+            revert ZeroAddress();
         }
 
         if (poolFee != 500 && poolFee != 3000 && poolFee != 10000) {
@@ -171,6 +248,9 @@ contract UniswapV3Adapter {
         if (amount0ToMint <= 0 || amount1ToMint <= 0) {
             revert InsufficientAmount(amount0ToMint, amount1ToMint);
         }
+
+        IERC20(token0).transferFrom(msg.sender, address(this), amount0ToMint);
+        IERC20(token1).transferFrom(msg.sender, address(this), amount1ToMint);
 
         IERC20(token0).approve(address(nonfungiblePositionManager), amount0ToMint);
         IERC20(token1).approve(address(nonfungiblePositionManager), amount1ToMint);
@@ -199,6 +279,8 @@ contract UniswapV3Adapter {
             liquidity: liquidity
         });
 
+        emit NewPositionMinted(tokenId, msg.sender, token0, token1, liquidity, amount0, amount1);
+
         return (tokenId, liquidity, amount0, amount1);
     }
 
@@ -226,6 +308,8 @@ contract UniswapV3Adapter {
             });
 
         (amount0, amount1) = nonfungiblePositionManager.collect(params);
+
+        emit FeesCollected(tokenId, msg.sender, amount0, amount1);
 
         return (amount0, amount1);
     }
@@ -264,6 +348,8 @@ contract UniswapV3Adapter {
 
         (amount0, amount1) = nonfungiblePositionManager.decreaseLiquidity(params);
 
+        emit LiquidityDecreased(tokenId, msg.sender, amount0, amount1, liquidity);
+
         return (amount0, amount1);
     }
 
@@ -293,6 +379,9 @@ contract UniswapV3Adapter {
             revert InvalidLiquidityAmounts(amountAdd0, amountAdd1);
         }
 
+        IERC20(positions[tokenId].token0).transferFrom(msg.sender, address(this), amountAdd0);
+        IERC20(positions[tokenId].token1).transferFrom(msg.sender, address(this), amountAdd1);
+
         IERC20(positions[tokenId].token0).approve(address(nonfungiblePositionManager), amountAdd0);
         IERC20(positions[tokenId].token1).approve(address(nonfungiblePositionManager), amountAdd1);
 
@@ -307,6 +396,8 @@ contract UniswapV3Adapter {
             });
 
         (liquidity, amount0, amount1) = nonfungiblePositionManager.increaseLiquidity(params);
+
+        emit LiquidityIncreased(tokenId, msg.sender, liquidity, amount0, amount1);
 
         return (liquidity, amount0, amount1);
     }
@@ -350,6 +441,8 @@ contract UniswapV3Adapter {
         });
 
         amountOut = swapRouter.exactInput(params);
+
+        emit SwapExecuted(tokenIn, amountIn, amountOut, path);
 
         return amountOut;
     }
@@ -401,6 +494,8 @@ contract UniswapV3Adapter {
         if (amountIn < amountInMaximum) {
             IERC20(tokenIn).transfer(msg.sender, amountInMaximum - amountIn);
         }
+
+        emit SwapExactOutputExecuted(tokenIn, amountOut, amountIn, path);
 
         return amountIn;
     }
